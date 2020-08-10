@@ -1,0 +1,178 @@
+<div class="grid-x align-middle wrapper"
+     [ngClass]="size">
+
+  <div *ngIf="hasColumn(CdnColumns.Checkbox) && permissionsService.isManageChannelsAllowed()"
+       class="cell shrink checkbox-column">
+    <checkbox [checked]="isSelected"
+              testId="checkbox"
+              (checkedChange)="toggleSelect.emit($event)">
+    </checkbox>
+  </div>
+
+  <div *ngIf="!hideStatus"
+       class="cell shrink status-column">
+    <status type="cdn"
+            [status]="cdn.status"
+            [startDate]="cdn.statusChangedAt"
+            [hideUptime]="!cdn.isStreaming"
+            [error]="cdn.status === 'error' ? (cdn.lastError || error) : null">
+    </status>
+  </div>
+
+  <div class="cell title-column"
+       [class.auto]="!showResponsiveColumns"
+       [class.shrink]="showResponsiveColumns">
+    <div class="text-primary ellipsis">
+      <a [routerLink]="getUrl()">{{cdn.title}}</a>
+    </div>
+    <a *ngIf="cdn.webUrl && !hasColumn(CdnColumns.Url)"
+       class="icon-link"
+       [href]="cdn.webUrl"
+       target="_blank">
+      <img class="cdn-icon"
+           [src]="cdn.iconUrl" />
+    </a>
+
+    <img *ngIf="!cdn.webUrl || hasColumn(CdnColumns.Url)"
+         class="cdn-icon"
+         [src]="cdn.iconUrl" />
+  </div>
+
+  <div *ngIf="showResponsiveColumns"
+       class="cell auto grid-x align-middle responsive-column">
+    <div *ngIf="hasColumn(CdnColumns.Account)"
+         class="cell auto">
+      <ng-container *ngIf="cdn.accountName">
+        <div class="text-secondary">Account:</div>
+        <div class="text-primary ellipsis">{{cdn.accountName}}</div>
+      </ng-container>
+    </div>
+
+    <div *ngIf="hasColumn(CdnColumns.Url)"
+         class="cell auto">
+      <ng-container *ngIf="getWebUrl(); else copyableUrl">
+        <div class="text-secondary">URL:</div>
+        <div class="text-primary ellipsis">
+          <a [href]="getWebUrl() | safeUrl" target="_blank">
+            {{getWebUrl()}}</a>
+        </div>
+      </ng-container>
+      <ng-template #copyableUrl>
+        <ng-container *ngIf="getCopyableUrl()">
+          <div class="text-secondary">URL:</div>
+          <div class="text-primary">
+            <copyable [text]="getCopyableUrl()"></copyable>
+          </div>
+        </ng-container>
+      </ng-template>
+    </div>
+  </div>
+
+  <div class="cell shrink grid-y align-top">
+    <auto-streaming-status *ngIf="cdn.autoStreaming"
+                           class="cell shrink"
+                           [class.half-margin-bottom]="cdn.autoStreamingAt && !hideScheduler"
+                           [autoStreaming]="cdn.autoStreaming"
+                           [displayMode]="size === 'small' ? 'short' : 'auto'">
+    </auto-streaming-status>
+
+    <scheduler-status *ngIf="cdn.autoStreamingAt && !hideScheduler"
+                      class="cell shrink"
+                      [date]="cdn.autoStreamingAt"
+                      [displayMode]="size === 'small' ? 'short' : 'auto'">
+    </scheduler-status>
+  </div>
+
+  <ng-container *ngIf="hasColumn(CdnColumns.StreamingActions)">
+
+    <div class="cell shrink grid-x align-right align-middle">
+      <action-group class="cell shrink"
+                    [iconId]="buttonIcon"
+                    [label]="buttonLabel"
+                    labelClass="hide-for-small-only"
+                    testId="go-live"
+                    [disabled]="isDisabled(cdn.status) || !permissionsService.isManageStreamsAllowed()"
+                    (clicked)="onActionClick()">
+      </action-group>
+    </div>
+
+    <div *ngIf="!cdn.isUploading"
+       class="cell shrink grid-x align-middle">
+      <dropdown iconId="sub-menu"
+                [hideArrow]="true">
+
+        <dropdown-item iconId="edit"
+                       label="Edit Channel"
+                       testId="edit"
+                       [disabled]="!permissionsService.isManageDevicesAllowed()"
+                       (click)="toggleSettings()">
+        </dropdown-item>
+
+        <dropdown-item *ngIf="!cdn.autoStreaming"
+                       iconId="auto"
+                       label="Enable Auto Streaming"
+                       testId="auto-streaming-on"
+                       [disabled]="!permissionsService.isManageDevicesAllowed()"
+                       (click)="toggleAutoStreaming.emit(true)">
+        </dropdown-item>
+
+        <dropdown-item *ngIf="cdn.autoStreaming"
+                       iconId="auto"
+                       label="Disable Auto Streaming"
+                       testId="auto-streaming-off"
+                       [disabled]="!permissionsService.isManageDevicesAllowed()"
+                       (click)="toggleAutoStreaming.emit(false)">
+        </dropdown-item>
+
+        <dropdown-item *ngIf="!hideScheduler"
+                       iconId="scheduler"
+                       label="Stream Scheduler"
+                       testId="stream-scheduler"
+                       [disabled]="!permissionsService.isManageDevicesAllowed() || cdn.isStreaming"
+                       (click)="toggleScheduler()">
+        </dropdown-item>
+
+      </dropdown>
+    </div>
+  </ng-container>
+
+  <div *ngIf="hasColumn(CdnColumns.Unlink) && !cdn.isUploading"
+       class="cell shrink grid-x align-middle">
+    <button class="cell button icon"
+            svg-icon
+            [disabled]="!permissionsService.isManageStreamsAllowed()"
+            iconId="unlink"
+            title="Unlink Channel"
+            [attr.data-test-id]="'unlink'"
+            (click)="unlink.emit(cdn.id)">
+    </button>
+  </div>
+
+  <div *ngIf="hasColumn(CdnColumns.Remove)"
+       class="cell shrink grid-x align-middle">
+    <button class="cell button icon margin-left-1"
+            title="Delete from Core"
+            svg-icon
+            iconId="remove"
+            [disabled]="!permissionsService.isManageChannelsAllowed()"
+            (click)="remove.emit(cdn.id)">
+    </button>
+  </div>
+</div>
+
+<stream-scheduler *ngIf="isSchedulerOpened"
+                  [@slideDown]
+                  [date]="cdn.autoStreamingAt"
+                  [isApplying]="isSchedulerApplying"
+                  (confirm)="setSchedule($event)"
+                  (cancel)="cancelSchedule()"
+                  (close)="isSchedulerOpened = false">
+</stream-scheduler>
+
+<cdn-settings *ngIf="isSettingsOpened"
+              [@slideDown]
+              [cdn]="cdn"
+              [showCancelButton]="true"
+              (success)="toggleSettings()"
+              (cancel)="toggleSettings()">
+</cdn-settings>
